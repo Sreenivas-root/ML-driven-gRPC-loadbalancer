@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package loadbalancer;
+
+option go_package = "./api";
+
+// Service definition for our backend service
+service BackendService {
+  // Simple computation method that simulates CPU work
+  rpc ProcessData(ProcessDataRequest) returns (ProcessDataResponse);
+  
+  // Retrieval method that simulates I/O operations
+  rpc GetResource(GetResourceRequest) returns (GetResourceResponse);
+  
+  // Health check method
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Request message for ProcessData
+message ProcessDataRequest {
+  string data = 1;
+  int32 complexity = 2; // Simulates computational complexity (1-10)
+}
+
+// Response message for ProcessData
+message ProcessDataResponse {
+  string result = 1;
+  int64 processing_time_ms = 2;
+  string pod_id = 3; // Which pod processed the request
+}
+
+// Request message for GetResource
+message GetResourceRequest {
+  string resource_id = 1;
+  bool simulate_slow_operation = 2; // For testing latency
+}
+
+// Response message for GetResource
+message GetResourceResponse {
+  string resource_data = 1;
+  string metadata = 2;
+  string pod_id = 3;
+}
+
+// Health check messages
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  ServingStatus status = 1;
+  string pod_id = 2;
+}
