@@ -1,0 +1,126 @@
+services:
+  # Backend service 1 - Fast/Optimized pod
+  backend-1:
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ml-backend-1
+    environment:
+      - POD_ID=backend-pod-1
+      - CPU_FACTOR=0.8
+      - LATENCY_BASE=30
+      - GRPC_PORT=9090
+      - METRICS_PORT=8080
+    ports:
+      - "9091:9090"  # gRPC
+      - "8081:8080"  # Metrics
+    networks:
+      - ml-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend service 2 - Baseline pod
+  backend-2:
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ml-backend-2
+    environment:
+      - POD_ID=backend-pod-2
+      - CPU_FACTOR=1.2
+      - LATENCY_BASE=50
+      - GRPC_PORT=9090
+      - METRICS_PORT=8080
+    ports:
+      - "9092:9090"  # gRPC
+      - "8082:8080"  # Metrics
+    networks:
+      - ml-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend service 3 - Slow/Loaded pod
+  backend-3:
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ml-backend-3
+    environment:
+      - POD_ID=backend-pod-3
+      - CPU_FACTOR=1.8
+      - LATENCY_BASE=70
+      - GRPC_PORT=9090
+      - METRICS_PORT=8080
+    ports:
+      - "9093:9090"  # gRPC
+      - "8083:8080"  # Metrics
+    networks:
+      - ml-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ml-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules.yml:/etc/prometheus/rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - ml-network
+    depends_on:
+      - backend-1
+      - backend-2
+      - backend-3
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ml-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboard-configs:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    networks:
+      - ml-network
+    depends_on:
+      - prometheus
+
+networks:
+  ml-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  prometheus_data:
+  grafana_data:

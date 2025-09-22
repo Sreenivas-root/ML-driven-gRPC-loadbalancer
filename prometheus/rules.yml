@@ -1,0 +1,54 @@
+groups:
+  - name: backend.rules
+    rules:
+    # CPU utilization rate (as percentage)
+    - record: backend:cpu_utilization_rate
+      expr: rate(container_cpu_usage_seconds_total[1m]) * 100
+      labels:
+        metric_type: "cpu"
+
+    # Memory usage in MB
+    - record: backend:memory_usage_mb
+      expr: container_memory_working_set_bytes / 1024 / 1024
+      labels:
+        metric_type: "memory"
+
+    # gRPC latency p95
+    - record: backend:grpc_latency_p95
+      expr: histogram_quantile(0.95, sum by (le,pod) (rate(grpc_server_handling_seconds_bucket[2m])))
+      labels:
+        metric_type: "latency"
+
+    # gRPC latency p99
+    - record: backend:grpc_latency_p99  
+      expr: histogram_quantile(0.99, sum by (le,pod) (rate(grpc_server_handling_seconds_bucket[2m])))
+      labels:
+        metric_type: "latency"
+
+    # Request rate per second
+    - record: backend:request_rate
+      expr: sum(rate(grpc_server_requests_total[1m])) by (pod)
+      labels:
+        metric_type: "requests"
+
+  - name: backend.alerts
+    rules:
+    # High latency alert
+    - alert: HighLatency
+      expr: backend:grpc_latency_p95 > 0.5
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High latency detected on {{ $labels.pod }}"
+        description: "Pod {{ $labels.pod }} has p95 latency of {{ $value }}s"
+
+    # High CPU usage alert  
+    - alert: HighCPUUsage
+      expr: backend:cpu_utilization_rate > 80
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage on {{ $labels.pod }}"
+        description: "Pod {{ $labels.pod }} has CPU usage of {{ $value }}%"

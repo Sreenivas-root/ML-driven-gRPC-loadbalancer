@@ -1,0 +1,137 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ML Load Balancer - Backend Metrics",
+    "tags": ["ml", "grpc", "backend"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "CPU Utilization by Pod",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total[1m]) * 100",
+            "legendFormat": "{{ pod }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Memory Usage by Pod",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "container_memory_working_set_bytes{pod=~\"backend-pod-.*\"} / 1024 / 1024",
+            "legendFormat": "{{ pod }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "megabytes",
+            "min": 0
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "gRPC Latency P95",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by (le,pod) (rate(grpc_server_handling_seconds_bucket[2m])))",
+            "legendFormat": "P95 - {{ pod }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "gRPC Request Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(grpc_server_requests_total[1m])) by (pod)",
+            "legendFormat": "{{ pod }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "min": 0
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Pod Performance Scores (ML Features)",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total[1m]) * 100",
+            "format": "table",
+            "refId": "CPU"
+          },
+          {
+            "expr": "container_memory_working_set_bytes / 1024 / 1024",
+            "format": "table", 
+            "refId": "Memory"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (le,pod) (rate(grpc_server_handling_seconds_bucket[2m]))) * 1000",
+            "format": "table",
+            "refId": "Latency"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "merge",
+            "options": {}
+          },
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true,
+                "job": true,
+                "instance": true
+              },
+              "renameByName": {
+                "Value #CPU": "CPU %",
+                "Value #Memory": "Memory MB", 
+                "Value #Latency": "P95 Latency ms"
+              }
+            }
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+      }
+    ],
+    "time": {
+      "from": "now-5m",
+      "to": "now"
+    },
+    "refresh": "5s"
+  }
+}

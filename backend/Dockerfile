@@ -3,17 +3,17 @@ FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
 
-# Copy go mod files
-COPY go.mod go.sum ./
+# Copy backend source code first (except go.mod files)
+COPY backend/ .
 
-# Copy the API module
-COPY ../api ./api
+# Copy the API module from project root
+COPY api/ ./api/
+
+# Fix the replace directive for Docker build
+RUN sed -i 's|replace api => ../api|replace api => ./api|' go.mod
 
 # Download dependencies
 RUN go mod download
-
-# Copy source code
-COPY . .
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o backend main.go
@@ -21,8 +21,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o backend main.go
 # Runtime stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS requests if needed
-RUN apk --no-cache add ca-certificates
+# Install ca-certificates and curl for health checks
+RUN apk --no-cache add ca-certificates curl
 
 WORKDIR /root/
 
